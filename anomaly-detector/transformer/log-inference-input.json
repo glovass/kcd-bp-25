@@ -1,0 +1,15 @@
+{
+  "inputs": [
+    {
+      "name": "input-0",
+      "shape": [
+        2
+      ],
+      "datatype": "BYTES",
+      "data": [
+        "2025-04-14T13:18:47.163000Z INFO Statement: E",
+        "2025-04-14T13:18:47.163000Z CRITICAL Disk failure detected"
+      ]
+    }
+  ]
+}

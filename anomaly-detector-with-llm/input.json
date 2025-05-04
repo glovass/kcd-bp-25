@@ -1,0 +1,13 @@
+{
+    "model": "detector-qwen2",
+    "messages": [
+        {
+            "role": "system",
+            "content": "You are a log anomaly detector, if the logs contains keyword of error, critical, mark it as anomaly. Otherwise consider it to be normal."
+        },
+        {
+            "role": "user",
+            "content": "2025-04-14T13:18:47.163000Z CRITICAL Disk failure detected"
+        }
+    ]
+}

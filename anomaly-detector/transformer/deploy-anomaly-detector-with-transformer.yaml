@@ -1,0 +1,78 @@
+apiVersion: "serving.kserve.io/v1beta1"
+kind: "InferenceService"
+metadata:
+  annotations:
+    user: "test-user"
+    display-name: "test-display-name"
+    serving.kserve.io/deploymentMode: RawDeployment
+  labels:
+    app: "test-id"
+    app.kubernetes.io/name: "test-id"
+    project: "kcd-project"
+  name: "anomaly-detector"
+spec:
+  predictor:
+    volumes:
+      - emptyDir: {}
+        name: "kserve-provision-location"
+        affinity:
+    initContainers:
+      - name: storage-initializer
+        image: kserve/storage-initializer:v0.15.0
+        args:
+          - https://github.com/glovass/kcd-bp-25/blob/main/anomaly-detector/svm_model.pkl?raw=true
+          - /mnt/models
+        resources:
+          limits:
+            cpu: '1'
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        volumeMounts:
+          - name: kserve-provision-location
+            mountPath: /mnt/models
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: FallbackToLogsOnError
+        imagePullPolicy: IfNotPresent
+    containers:
+      - args:
+          - "--model_name=detector"
+          - "--model_dir=/mnt/models"
+          - --http_port=8085
+          - --grpc_port=8086
+        image: "kserve/sklearnserver:v0.15.0"
+        imagePullPolicy: "Always"
+        name: "kserve-container"
+        resources:
+          limits:
+            cpu: "1"
+            memory: "1Gi"
+          requests:
+            cpu: "1"
+            memory: "1Gi"
+        terminationMessagePath: "/dev/termination-log"
+        terminationMessagePolicy: "File"
+        volumeMounts:
+          - mountPath: "/mnt/models"
+            name: "kserve-provision-location"
+            readOnly: true
+      - name: transformer-container    # Do not change the container name
+        image: docker.io/glovass/custom-transformer:latest
+        imagePullPolicy: "Always"
+        args:
+          - --model_name=detector
+          - --predictor_protocol=v2    # protocol of the predictor; used for converting the input to specific protocol supported by the predictor
+          - --http_port=8080
+          - --grpc_port=8081
+          - --predictor_host=localhost:8085   # predictor listening port
+        ports:
+          - containerPort: 8080
+            protocol: TCP
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 1
+            memory: 1Gi

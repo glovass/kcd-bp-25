@@ -1,0 +1,55 @@
+apiVersion: "serving.kserve.io/v1beta1"
+kind: "InferenceService"
+metadata:
+  annotations:
+    user: "test-user"
+    display-name: "test-display-name"
+    serving.kserve.io/deploymentMode: RawDeployment
+  labels:
+    app: "test-id"
+    app.kubernetes.io/name: "test-id"
+    project: "kcd-project"
+  name: "anomaly-detector"
+spec:
+  predictor: # K8s: PodSpec 
+    volumes:
+      - emptyDir: {}
+        name: "kserve-provision-location"
+        affinity:
+    initContainers:
+      - name: storage-initializer
+        image: kserve/storage-initializer:v0.15.0
+        args:
+          - https://github.com/glovass/kcd-bp-25/blob/main/anomaly-detector/svm_model.pkl?raw=true
+          - /mnt/models
+        resources:
+          limits:
+            cpu: '1'
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        volumeMounts:
+          - name: kserve-provision-location
+            mountPath: /mnt/models
+    containers:
+      - name: "kserve-container"
+        image: "kserve/sklearnserver:v0.15.0"
+        args:
+          - "--model_name=detector"
+          - "--model_dir=/mnt/models"
+          - "--http-port=8080"
+        imagePullPolicy: "Always"
+        resources:
+          limits:
+            cpu: "1"
+            memory: "1Gi"
+          requests:
+            cpu: "1"
+            memory: "1Gi"
+        terminationMessagePath: "/dev/termination-log"
+        terminationMessagePolicy: "File"
+        volumeMounts:
+          - mountPath: "/mnt/models"
+            name: "kserve-provision-location"
+            readOnly: true

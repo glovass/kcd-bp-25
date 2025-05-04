@@ -1,0 +1,68 @@
+apiVersion: "serving.kserve.io/v1beta1"
+kind: "InferenceService"
+metadata:
+  annotations:
+    user: "test-user"
+    display-name: "test-display-name"
+    serving.kserve.io/deploymentMode: RawDeployment
+  labels:
+    app: "test-id"
+    app.kubernetes.io/name: "test-id-llm"
+    project: "kcd-project"
+  name: "anomaly-detector-llm"
+spec:
+  predictor: # K8s: PodSpec 
+    volumes:
+      - emptyDir: {}
+        name: "kserve-provision-location"
+        affinity:
+    containers:
+      - name: "kserve-container"
+        image: "kserve/huggingfaceserver:v0.15.0"
+        args:
+          - "--model_name=detector-qwen2"
+          - "--model_dir=/mnt/models"
+          - "--http-port=8080"
+        imagePullPolicy: "Always"
+        resources:
+          limits:
+            cpu: "1"
+            memory: "1Gi"
+            nvidia.com/gpu: 1
+          requests:
+            cpu: "1"
+            memory: "1Gi"
+            nvidia.com/gpu: 1
+        terminationMessagePath: "/dev/termination-log"
+        terminationMessagePolicy: "File"
+        volumeMounts:
+          - mountPath: "/mnt/models"
+            name: "kserve-provision-location"
+            readOnly: true
+      - name: modelcar
+        image: docker.io/glovass/oci-qwen:latest
+        args:
+          - 'sh'
+          - '-c'
+          - 'ln -s /proc/$$$$/root/models /mnt/models && sleep infinity'
+        imagePullPolicy: Always
+        resources:
+          limits:
+            cpu: '1'
+            memory: 2Gi
+          requests:
+            cpu: '1'
+            memory: 2Gi
+        volumeMounts:
+          - name: kserve-provision-location
+            readOnly: false
+            mountPath: /mnt/models
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+            - matchExpressions:
+                - key: node-selector-key
+                  operator: In
+                  values:
+                    - node-selector-value
